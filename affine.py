@@ -1,3 +1,4 @@
+from functools import cache
 from base64 import decode
 from cgitb import text
 from cmath import inf
@@ -7,16 +8,27 @@ import numpy as np
 
 def main():
     validbit = 1
+    if len(sys.argv) < 4:
+        print("Example arguments:")
+        print("")
+        print("encrypt [plaintext-file] [output-file] [a] [b]")
+        print("decrypt [ciphertext-file] [output-file] [a] [b]")
+        print("decipher [ciphertext-file] [output-file] [dictionary-file]")
+        print("")
+        return
     mode = sys.argv[1]
     inFile, outFile = sys.argv[2], sys.argv[3]
     deciphered = False
     
+    
+    # if decipher arg passed break early 
     if sys.argv[1] == "decipher":
-        decipher(inFile, outFile, sys.argv[4])
+        a, b = decipher(inFile, outFile, sys.argv[4])
         deciphered = True
+        print("deciphered with keys " + a + ", " + b)
         return
     
-    
+    # cases for args
     if deciphered == False:
         a, b = int(sys.argv[4]), int(sys.argv[5])
         validbit, g, v = egcd(a, b)
@@ -24,20 +36,24 @@ def main():
             print("The key pair (" + str(a) + ", " +   str(b) + ") is invalid, please select another key.")
             return
         if mode == "encrypt":
+            print("encrypted " + inFile + " in " + outFile)
             encrypt(inFile, outFile, a, b)
             return
         if mode == "decrypt":
+            print("decrypted " + outFile + " in " + inFile)
             decrypt(inFile, outFile, a, b)
             return
-        
+
+@cache
 def egcd(a, b):
-        # as + bt = d and gcd(a, b) = d
+  # as + bt = d and gcd(a, b) = d
     if a == 0:
         return (b, 0, 1)
     else:
         g, y, x = egcd(b % a, a)
         return (g, x - (b // a) * y, y) 
 
+@cache
 def modinv(a, m):
     g, x, y = egcd(a, m)
     if g == 1:
@@ -70,6 +86,7 @@ def decrypt(inFile, outFile, a, b):
     file.close()
     out.close()
 
+@cache
 def checkMatches(inFile, dictionary, a, b):
     file, words = open(inFile, 'r'), open(dictionary, 'r')
     temp = ""
@@ -78,7 +95,6 @@ def checkMatches(inFile, dictionary, a, b):
     for line in file:
         for character in line:
             decodedChar = (128 + modinv(a, 128) * ord(character) - b) % 128
-            # print(chr(decodedChar))
             if decodedChar == 123:
                 temp += "b"    
             elif decodedChar == 5:
@@ -93,10 +109,10 @@ def checkMatches(inFile, dictionary, a, b):
             if len(decode) > 3:
                 if decode.lower() == line.strip("\n").lower():
                     wordCount += 1
-                    print("Word " + str(wordCount) + " " + "Matched With Key " + str(a) + ", " + str(b) + ".")
 
     return wordCount
 
+@cache
 def decipher(inFile, outFile, dictionary):
     file, out = open(inFile, 'r'), open(outFile, 'w')
     currentWordCount = 0
@@ -107,7 +123,6 @@ def decipher(inFile, outFile, dictionary):
         for b in range(128):
             if egcd(a, 128)[0] == 1 and egcd(a, b)[0] == 1:
                 count = checkMatches(inFile, dictionary, a, b)
-                print(count)
                 if count > currentWordCount:
                     currentA = a
                     currentB = b
@@ -128,6 +143,7 @@ def decipher(inFile, outFile, dictionary):
     
     file.close()
     out.close()
+    return currentA, currentB
 
 if __name__ == "__main__":
     main()
